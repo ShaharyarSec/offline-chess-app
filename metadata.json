@@ -1,0 +1,6 @@
+{
+  "name": "Grandmaster Chess Offline",
+  "description": "Production-ready, fully offline-capable chess app featuring Pass & Play, 5-level AI bot, tactical puzzles, PGN export, dark mode, and Web Audio sound effects.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
