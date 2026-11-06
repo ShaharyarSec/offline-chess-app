@@ -17,43 +17,42 @@ export const ChessPiece: React.FC<ChessPieceProps> = ({
 }) => {
   const isWhite = color === 'w';
 
-  // --- Theme Gradient & Stroke Definitions ---
-  let gradId = isWhite ? 'piece-white-grad' : 'piece-black-grad';
-  let stroke = isWhite ? '#27272a' : '#09090b';
-  let innerDetail = isWhite ? '#cbd5e1' : '#64748b';
+  // Crisp contrast strokes & gradients
+  let gradId = isWhite ? 'piece-white-neo' : 'piece-black-neo';
+  let stroke = isWhite ? '#1e293b' : '#09090b';
+  let innerDetail = isWhite ? '#e2e8f0' : '#94a3b8';
 
   if (pieceSet === 'wood') {
     gradId = isWhite ? 'piece-wood-white' : 'piece-wood-black';
-    stroke = isWhite ? '#78350f' : '#291404';
-    innerDetail = isWhite ? '#fde68a' : '#92400e';
+    stroke = isWhite ? '#78350f' : '#271202';
+    innerDetail = isWhite ? '#fef3c7' : '#92400e';
   } else if (pieceSet === 'minimalist') {
     gradId = isWhite ? 'piece-min-white' : 'piece-min-black';
-    stroke = isWhite ? '#334155' : '#020617';
-    innerDetail = isWhite ? '#f1f5f9' : '#475569';
+    stroke = isWhite ? '#0f172a' : '#020617';
+    innerDetail = isWhite ? '#f8fafc' : '#475569';
   }
 
   const fill = `url(#${gradId})`;
 
-  // Render Modern Minimalist Geometric Set
   if (pieceSet === 'minimalist') {
     return (
       <svg
         viewBox="0 0 45 45"
-        className={`${className} select-none pointer-events-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] transition-transform`}
+        className={`${className} select-none pointer-events-none drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]`}
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
           <linearGradient id="piece-min-white" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stop-color="#ffffff" />
-            <stop offset="100%" stop-color="#e2e8f0" />
+            <stop offset="100%" stop-color="#f1f5f9" />
           </linearGradient>
           <linearGradient id="piece-min-black" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stop-color="#334155" />
-            <stop offset="100%" stop-color="#0f172a" />
+            <stop offset="100%" stop-color="#1e293b" />
           </linearGradient>
         </defs>
 
-        <g stroke={stroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill={fill}>
+        <g stroke={stroke} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill={fill}>
           {type === 'p' && (
             <>
               <circle cx="22.5" cy="14" r="5" />
@@ -65,7 +64,7 @@ export const ChessPiece: React.FC<ChessPieceProps> = ({
           {type === 'n' && (
             <>
               <path d="M 14 38 L 31 38 C 31 34 29 26 31 16 C 30 14 26 10 22 9 C 18 10 13 14 13 22 C 13 26 17 26 17 28 C 17 31 14 33 14 38 Z" />
-              <circle cx="18" cy="16" r="1.5" fill={isWhite ? '#0f172a' : '#ffffff'} stroke="none" />
+              <circle cx="18" cy="16" r="1.5" fill={isWhite ? '#0f172a' : '#f8fafc'} stroke="none" />
               <path d="M 23 12 L 28 17" fill="none" strokeWidth="1.5" />
             </>
           )}
@@ -73,7 +72,7 @@ export const ChessPiece: React.FC<ChessPieceProps> = ({
           {type === 'b' && (
             <>
               <path d="M 22.5 7 L 29 17 C 31 23 30 31 29 38 L 16 38 C 15 31 14 23 16 17 Z" />
-              <path d="M 20 18 L 25 23" fill="none" stroke={stroke} strokeWidth="2" />
+              <path d="M 20 18 L 25 23" fill="none" stroke={stroke} strokeWidth="1.8" />
               <circle cx="22.5" cy="6" r="1.5" />
               <rect x="13" y="38" width="19" height="3" rx="1.5" />
             </>
@@ -110,36 +109,33 @@ export const ChessPiece: React.FC<ChessPieceProps> = ({
     );
   }
 
-  // Render Neo or Wood Set
   return (
     <svg
       viewBox="0 0 45 45"
-      className={`${className} select-none pointer-events-none drop-shadow-[0_3px_5px_rgba(0,0,0,0.35)] transition-transform`}
+      className={`${className} select-none pointer-events-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]`}
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        {/* Neo Gradients */}
-        <linearGradient id="piece-white-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+        {/* Neo Gradients: subtle highlights so dark pieces pop against dark squares */}
+        <linearGradient id="piece-white-neo" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="#ffffff" />
-          <stop offset="65%" stop-color="#f8fafc" />
+          <stop offset="80%" stop-color="#f8fafc" />
           <stop offset="100%" stop-color="#e2e8f0" />
         </linearGradient>
-        <linearGradient id="piece-black-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#334155" />
-          <stop offset="40%" stop-color="#1e293b" />
-          <stop offset="100%" stop-color="#0f172a" />
+        <linearGradient id="piece-black-neo" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#475569" />
+          <stop offset="45%" stop-color="#1e293b" />
+          <stop offset="100%" stop-color="#09090b" />
         </linearGradient>
 
-        {/* Vintage Wood Gradients */}
+        {/* Wood Gradients */}
         <linearGradient id="piece-wood-white" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#ffedd5" />
-          <stop offset="50%" stop-color="#fed7aa" />
-          <stop offset="100%" stop-color="#fdba74" />
+          <stop offset="0%" stop-color="#fef3c7" />
+          <stop offset="100%" stop-color="#fde68a" />
         </linearGradient>
         <linearGradient id="piece-wood-black" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="#78350f" />
-          <stop offset="60%" stop-color="#451a03" />
-          <stop offset="100%" stop-color="#291404" />
+          <stop offset="100%" stop-color="#451a03" />
         </linearGradient>
       </defs>
 

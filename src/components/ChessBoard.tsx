@@ -116,9 +116,9 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
 
   return (
     <div
-      className={`relative w-full max-w-[540px] aspect-square mx-auto rounded-3xl overflow-hidden border-2 sm:border-3 backdrop-blur-xl ${theme.border} ${theme.glowColor} select-none transition-all duration-300 shadow-2xl p-1.5 bg-black/30`}
+      className="relative w-full max-w-[540px] aspect-square mx-auto rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-300 dark:border-zinc-800 shadow-md select-none transition-all duration-200 p-1 sm:p-1.5 bg-slate-200/70 dark:bg-zinc-900"
     >
-      <div className="grid grid-cols-8 grid-rows-8 w-full h-full rounded-2xl overflow-hidden shadow-inner">
+      <div className="grid grid-cols-8 grid-rows-8 w-full h-full rounded-xl sm:rounded-2xl overflow-hidden shadow-inner">
         {displayedRanks.map((rank, rankIndex) =>
           displayedFiles.map((file, fileIndex) => {
             const square = `${file}${rank}` as Square;

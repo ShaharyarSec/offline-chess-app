@@ -48,7 +48,7 @@ export const CapturedPieces: React.FC<CapturedPiecesProps> = ({
       </div>
 
       {diff > 0 && (
-        <span className="text-[11px] font-bold text-amber-400 bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.2 rounded-md font-mono">
+        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded-md font-mono">
           +{diff}
         </span>
       )}

@@ -20,22 +20,22 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({ isOpen, color, o
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl text-center">
-        <h3 className="text-lg font-bold text-white mb-1">Promote Pawn</h3>
-        <p className="text-xs text-slate-400 mb-5">Choose a piece to replace your promoted pawn</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-6 shadow-xl text-center text-slate-900 dark:text-white">
+        <h3 className="text-base font-bold mb-1">Promote Pawn</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">Select piece</p>
 
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 gap-2.5">
           {pieces.map(({ type, label }) => (
             <button
               key={type}
               onClick={() => onSelect(type)}
-              className="group flex flex-col items-center justify-center p-3 rounded-xl bg-slate-800 hover:bg-amber-500/20 border border-slate-700 hover:border-amber-400 transition-all active:scale-95 cursor-pointer"
+              className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 transition active:scale-95 cursor-pointer"
             >
-              <div className="w-12 h-12 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 flex items-center justify-center">
                 <ChessPiece type={type} color={color} />
               </div>
-              <span className="mt-2 text-xs font-semibold text-slate-300 group-hover:text-amber-300">
+              <span className="mt-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 {label}
               </span>
             </button>
@@ -44,9 +44,9 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({ isOpen, color, o
 
         <button
           onClick={onCancel}
-          className="mt-6 text-xs text-slate-400 hover:text-slate-200 underline cursor-pointer"
+          className="mt-5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 underline cursor-pointer"
         >
-          Cancel move
+          Cancel
         </button>
       </div>
     </div>

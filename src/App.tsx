@@ -4,35 +4,26 @@ import confetti from 'canvas-confetti';
 import {
   RotateCcw,
   RefreshCw,
-  Trophy,
-  Bot,
-  Users,
-  Settings,
   Volume2,
   VolumeX,
+  History,
   Flag,
   Handshake,
   ChevronLeft,
-  Share2,
-  History,
-  Home,
-  CheckCircle2,
-  Sparkles,
+  Settings,
 } from 'lucide-react';
 
 import type {
   ScreenView,
   GameMode,
   BotDifficulty,
-  BoardThemeId,
-  PieceSetId,
   GameSettings,
   MoveRecord,
   PlayerClocks,
   SavedGameState,
   CompletedGameRecord,
 } from './types/chess';
-import { BOARD_THEMES, BOT_CONFIGS } from './data/themes';
+import { BOT_CONFIGS } from './data/themes';
 import { CHESS_PUZZLES } from './data/puzzles';
 import { soundManager } from './utils/audio';
 import { getBestBotMove } from './utils/engine';
@@ -48,11 +39,9 @@ import { SettingsModal } from './components/SettingsModal';
 import { PuzzlePanel } from './components/PuzzlePanel';
 import { MatchHistoryDrawer } from './components/MatchHistoryDrawer';
 import { DrawOfferModal } from './components/DrawOfferModal';
-import { PWAInstallButton } from './components/PWAInstallButton';
-import { OfflineIndicator } from './components/OfflineIndicator';
 
 const DEFAULT_SETTINGS: GameSettings = {
-  boardTheme: 'glass-ice',
+  boardTheme: 'emerald',
   pieceSet: 'neo',
   soundEnabled: true,
   showLegalMoves: true,
@@ -61,18 +50,16 @@ const DEFAULT_SETTINGS: GameSettings = {
   flipBoard: false,
   timeControlSeconds: 0,
   incrementSeconds: 0,
-  darkMode: true,
+  darkMode: false, // Default clean light mode, persistent toggle
 };
 
 const SAVED_MATCH_KEY = 'gm_chess_active_match';
 const HISTORY_MATCHES_KEY = 'gm_chess_completed_matches';
 
 export default function App() {
-  // --- Navigation & View Mode ---
   const [currentView, setCurrentView] = useState<ScreenView>('home');
   const [gameMode, setGameMode] = useState<GameMode>('bot');
 
-  // --- Settings State ---
   const [settings, setSettings] = useState<GameSettings>(() => {
     try {
       const saved = localStorage.getItem('gm_chess_settings');
@@ -92,7 +79,6 @@ export default function App() {
   const [userSide, setUserSide] = useState<Color>('w');
   const [isBotThinking, setIsBotThinking] = useState(false);
 
-  // --- Completed Match History (last 10 games) ---
   const [completedMatches, setCompletedMatches] = useState<CompletedGameRecord[]>(() => {
     try {
       const saved = localStorage.getItem(HISTORY_MATCHES_KEY);
@@ -101,7 +87,6 @@ export default function App() {
     return [];
   });
 
-  // --- Auto-Saved Active Match State ---
   const [savedActiveMatch, setSavedActiveMatch] = useState<SavedGameState | null>(() => {
     try {
       const saved = localStorage.getItem(SAVED_MATCH_KEY);
@@ -110,26 +95,22 @@ export default function App() {
     return null;
   });
 
-  // --- Core Chess Instance ---
   const chessRef = useRef<Chess>(new Chess());
   const [, setRenderTrigger] = useState(0);
   const forceUpdate = () => setRenderTrigger((n) => n + 1);
 
-  // --- Move & Position State ---
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [capturedByWhite, setCapturedByWhite] = useState<PieceSymbol[]>([]);
   const [capturedByBlack, setCapturedByBlack] = useState<PieceSymbol[]>([]);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
 
-  // --- Pawn Promotion Modal ---
   const [pendingPromotion, setPendingPromotion] = useState<{
     from: Square;
     to: Square;
     color: Color;
   } | null>(null);
 
-  // --- Clocks State ---
   const [clocks, setClocks] = useState<PlayerClocks>({
     white: 0,
     black: 0,
@@ -137,7 +118,6 @@ export default function App() {
     isRunning: false,
   });
 
-  // --- Modals State ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [isDrawOfferOpen, setIsDrawOfferOpen] = useState(false);
@@ -150,46 +130,74 @@ export default function App() {
     result: '1-0' | '0-1' | '1/2-1/2';
   } | null>(null);
 
-  // --- Puzzle State ---
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   const [puzzleMoveStep, setPuzzleMoveStep] = useState(0);
   const [puzzleStatus, setPuzzleStatus] = useState<'playing' | 'success' | 'failed'>('playing');
   const [puzzleFeedback, setPuzzleFeedback] = useState<string>('');
-  const [puzzleSolvedCount, setPuzzleSolvedCount] = useState<number>(() => {
-    try {
-      return parseInt(localStorage.getItem('gm_chess_puzzles_solved') || '0', 10);
-    } catch {
-      return 0;
-    }
-  });
+  const [puzzleSolvedCount, setPuzzleSolvedCount] = useState<number>(0);
   const [puzzleStreak, setPuzzleStreak] = useState<number>(0);
 
-  // Sync sound settings with audio engine
+  // Sync sound setting
   useEffect(() => {
     soundManager.setEnabled(settings.soundEnabled);
   }, [settings.soundEnabled]);
 
-  // Persist settings
+  // Sync dark/light mode class and colors on document element & body
+  useEffect(() => {
+    const root = document.documentElement;
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (settings.darkMode) {
+      root.classList.add('dark');
+      root.style.backgroundColor = '#0a0a0a';
+      document.body.style.backgroundColor = '#0a0a0a';
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#0a0a0a');
+    } else {
+      root.classList.remove('dark');
+      root.style.backgroundColor = '#f8fafc';
+      document.body.style.backgroundColor = '#f8fafc';
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#f8fafc');
+    }
+    localStorage.setItem('gm_chess_settings', JSON.stringify(settings));
+  }, [settings.darkMode]);
+
+  // Save settings
   useEffect(() => {
     localStorage.setItem('gm_chess_settings', JSON.stringify(settings));
   }, [settings]);
 
-  // Persist bot difficulty
+  // Save bot difficulty
   useEffect(() => {
     localStorage.setItem('gm_chess_bot_difficulty', botDifficulty.toString());
   }, [botDifficulty]);
 
-  // Persist completed matches
+  // Save completed matches
   useEffect(() => {
     localStorage.setItem(HISTORY_MATCHES_KEY, JSON.stringify(completedMatches.slice(0, 10)));
   }, [completedMatches]);
 
-  // Persist puzzle progress
+  // Auto-save active match to localStorage on move
   useEffect(() => {
-    localStorage.setItem('gm_chess_puzzles_solved', puzzleSolvedCount.toString());
-  }, [puzzleSolvedCount]);
+    if (gameMode === 'puzzle') return;
 
-  // Clock countdown ticker
+    if (moveHistory.length > 0 && !chessRef.current.isGameOver()) {
+      const stateToSave: SavedGameState = {
+        fen: chessRef.current.fen(),
+        gameMode,
+        userSide,
+        botDifficulty,
+        moveHistory,
+        clocks,
+        timeControlSeconds: settings.timeControlSeconds,
+        incrementSeconds: settings.incrementSeconds,
+        lastMove,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(SAVED_MATCH_KEY, JSON.stringify(stateToSave));
+      setSavedActiveMatch(stateToSave);
+    }
+  }, [moveHistory, gameMode, userSide, botDifficulty, clocks, lastMove, settings]);
+
+  // Timer countdown
   useEffect(() => {
     if (!clocks.isRunning || clocks.white <= 0 || clocks.black <= 0 || settings.timeControlSeconds === 0) {
       return;
@@ -205,8 +213,8 @@ export default function App() {
           const winner = color === 'w' ? 'Black' : 'White';
           const outcomeRes: '1-0' | '0-1' = color === 'w' ? '0-1' : '1-0';
           handleGameEnd(
-            `${winner} Wins on Time!`,
-            `${color === 'w' ? 'White' : 'Black'} flagged out of time.`,
+            `${winner} wins on time`,
+            `${color === 'w' ? 'White' : 'Black'} ran out of time`,
             'Timeout',
             outcomeRes
           );
@@ -228,29 +236,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, [clocks.isRunning, clocks.activeColor, settings.timeControlSeconds]);
 
-  // Auto-Save Active Match to localStorage whenever moveHistory or position changes
-  useEffect(() => {
-    if (gameMode === 'puzzle') return; // Don't auto-save puzzles
-
-    if (moveHistory.length > 0 && !chessRef.current.isGameOver()) {
-      const stateToSave: SavedGameState = {
-        fen: chessRef.current.fen(),
-        gameMode,
-        userSide,
-        botDifficulty,
-        moveHistory,
-        clocks,
-        timeControlSeconds: settings.timeControlSeconds,
-        incrementSeconds: settings.incrementSeconds,
-        lastMove,
-        timestamp: Date.now(),
-      };
-      localStorage.setItem(SAVED_MATCH_KEY, JSON.stringify(stateToSave));
-      setSavedActiveMatch(stateToSave);
-    }
-  }, [moveHistory, gameMode, userSide, botDifficulty, clocks, lastMove, settings]);
-
-  // Recalculate captured pieces
   const recalculateCaptured = (chess: Chess) => {
     const board = chess.board();
     const currentCounts: Record<string, number> = {
@@ -283,20 +268,19 @@ export default function App() {
     setCapturedByBlack(blackCaptured);
   };
 
-  // Generate standard PGN format text
   const generatePgn = (overrideResult?: string): string => {
     const whitePlayer =
       gameMode === 'bot'
         ? userSide === 'w'
-          ? 'Human Player'
-          : BOT_CONFIGS[botDifficulty].name
-        : 'Player 1';
+          ? 'White'
+          : `Computer (L${botDifficulty})`
+        : 'White';
     const blackPlayer =
       gameMode === 'bot'
         ? userSide === 'b'
-          ? 'Human Player'
-          : BOT_CONFIGS[botDifficulty].name
-        : 'Player 2';
+          ? 'Black'
+          : `Computer (L${botDifficulty})`
+        : 'Black';
 
     let resultTag = overrideResult || '*';
     if (!overrideResult) {
@@ -308,10 +292,9 @@ export default function App() {
     }
 
     const headers = [
-      `[Event "Grandmaster Chess PWA"]`,
-      `[Site "Offline Web Engine"]`,
+      `[Event "Casual Game"]`,
+      `[Site "Chess"]`,
       `[Date "${new Date().toISOString().slice(0, 10).replace(/-/g, '.')}"]`,
-      `[Round "1"]`,
       `[White "${whitePlayer}"]`,
       `[Black "${blackPlayer}"]`,
       `[Result "${resultTag}"]`,
@@ -329,7 +312,6 @@ export default function App() {
     return `${headers}\n\n${movesText.trim()} ${resultTag}`;
   };
 
-  // Archive a completed game record
   const archiveCompletedMatch = (
     title: string,
     reason: string,
@@ -340,13 +322,13 @@ export default function App() {
       gameMode === 'bot'
         ? userSide === 'w'
           ? 'Player'
-          : BOT_CONFIGS[botDifficulty].name
+          : `Computer (L${botDifficulty})`
         : 'Player 1';
     const blackName =
       gameMode === 'bot'
         ? userSide === 'b'
           ? 'Player'
-          : BOT_CONFIGS[botDifficulty].name
+          : `Computer (L${botDifficulty})`
         : 'Player 2';
 
     const newMatch: CompletedGameRecord = {
@@ -364,12 +346,10 @@ export default function App() {
     };
 
     setCompletedMatches((prev) => [newMatch, ...prev].slice(0, 10));
-    // Clear active saved game
     localStorage.removeItem(SAVED_MATCH_KEY);
     setSavedActiveMatch(null);
   };
 
-  // Handle Game End Trigger
   const handleGameEnd = (
     title: string,
     subtitle: string,
@@ -380,7 +360,6 @@ export default function App() {
     archiveCompletedMatch(title, reason, result);
   };
 
-  // Start a fresh game
   const startNewGame = useCallback(
     (mode: GameMode = gameMode, playerSide: Color = userSide, botLvl: BotDifficulty = botDifficulty) => {
       const newChess = new Chess();
@@ -416,7 +395,6 @@ export default function App() {
     [gameMode, userSide, botDifficulty, currentPuzzleIndex, settings.timeControlSeconds]
   );
 
-  // Resume saved ongoing match
   const handleResumeSavedMatch = () => {
     if (!savedActiveMatch) return;
     try {
@@ -433,7 +411,7 @@ export default function App() {
       setCurrentView('game');
       forceUpdate();
     } catch (e) {
-      console.warn('Failed to resume match:', e);
+      console.warn('Failed to resume:', e);
       startNewGame();
     }
   };
@@ -443,7 +421,6 @@ export default function App() {
     setSavedActiveMatch(null);
   };
 
-  // Load a tactical puzzle
   const loadPuzzle = useCallback(
     (index: number) => {
       const puzzle = CHESS_PUZZLES[index];
@@ -465,7 +442,6 @@ export default function App() {
     []
   );
 
-  // Asynchronous Bot move trigger (Web Worker)
   const triggerBotMove = async (chessInstance: Chess, lvl: BotDifficulty = botDifficulty) => {
     if (chessInstance.isGameOver()) return;
     setIsBotThinking(true);
@@ -514,7 +490,6 @@ export default function App() {
         setMoveHistory((prev) => [...prev, newRecord]);
         setHistoryIndex((prev) => prev + 1);
 
-        // Update Clocks
         setClocks((prev) => ({
           ...prev,
           activeColor: chessInstance.turn(),
@@ -532,56 +507,38 @@ export default function App() {
     }
   };
 
-  // Check end conditions
   const checkGameEnd = (chess: Chess) => {
     if (chess.isCheckmate()) {
       const winner = chess.turn() === 'w' ? 'Black' : 'White';
       const outcome: '1-0' | '0-1' = chess.turn() === 'w' ? '0-1' : '1-0';
       handleGameEnd(
-        `Checkmate! ${winner} Wins!`,
-        `${winner} has delivered a decisive checkmate.`,
+        `${winner} wins`,
+        'Checkmate',
         'Checkmate',
         outcome
       );
 
       if ((gameMode === 'bot' && userSide === (chess.turn() === 'w' ? 'b' : 'w')) || gameMode === 'pass-and-play') {
         soundManager.playVictory();
-        confetti({ particleCount: 110, spread: 75, origin: { y: 0.6 } });
+        confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
       } else {
         soundManager.playDefeat();
       }
     } else if (chess.isStalemate()) {
-      handleGameEnd(
-        'Draw by Stalemate!',
-        'The active player has no legal moves and is not in check.',
-        'Stalemate',
-        '1/2-1/2'
-      );
+      handleGameEnd('Draw', 'Stalemate', 'Stalemate', '1/2-1/2');
       soundManager.playDefeat();
     } else if (chess.isThreefoldRepetition()) {
-      handleGameEnd(
-        'Draw by Threefold Repetition!',
-        'The identical board position has repeated 3 times.',
-        'Threefold Repetition',
-        '1/2-1/2'
-      );
+      handleGameEnd('Draw', 'Threefold repetition', 'Threefold Repetition', '1/2-1/2');
     } else if (chess.isInsufficientMaterial()) {
-      handleGameEnd(
-        'Draw by Insufficient Material!',
-        'Neither side has enough remaining pieces to force mate.',
-        'Insufficient Material',
-        '1/2-1/2'
-      );
+      handleGameEnd('Draw', 'Insufficient material', 'Insufficient Material', '1/2-1/2');
     }
   };
 
-  // Board Move Handler
   const handleBoardMove = (from: Square, to: Square, chosenPromotion?: PieceSymbol): boolean => {
     if (isBotThinking) return false;
     const chess = chessRef.current;
     if (chess.isGameOver()) return false;
 
-    // Check promotion condition
     const piece = chess.get(from);
     if (piece && piece.type === 'p') {
       const isWhitePromoting = piece.color === 'w' && to.endsWith('8');
@@ -593,7 +550,6 @@ export default function App() {
     }
 
     try {
-      // Puzzle validation
       if (gameMode === 'puzzle') {
         const puzzle = CHESS_PUZZLES[currentPuzzleIndex];
         const moveUci = `${from}${to}${chosenPromotion || ''}`;
@@ -613,9 +569,9 @@ export default function App() {
 
           if (nextStep >= puzzle.moves.length) {
             setPuzzleStatus('success');
-            setPuzzleFeedback('Brilliant tactical solution!');
+            setPuzzleFeedback('');
             soundManager.playVictory();
-            confetti({ particleCount: 90, spread: 65, origin: { y: 0.6 } });
+            confetti({ particleCount: 70, spread: 50, origin: { y: 0.6 } });
             setPuzzleSolvedCount((prev) => prev + 1);
             setPuzzleStreak((prev) => prev + 1);
           } else {
@@ -633,19 +589,18 @@ export default function App() {
                 setPuzzleMoveStep(nextStep + 1);
                 forceUpdate();
               }
-            }, 350);
+            }, 300);
           }
           return true;
         } else {
           soundManager.playIllegal();
           setPuzzleStatus('failed');
-          setPuzzleFeedback('That move is not part of the winning sequence.');
+          setPuzzleFeedback('Incorrect move.');
           setPuzzleStreak(0);
           return false;
         }
       }
 
-      // Standard Move
       const moveResult = chess.move({
         from,
         to,
@@ -710,7 +665,7 @@ export default function App() {
 
       return true;
     } catch (err) {
-      console.error('Move execution error:', err);
+      console.error('Move error:', err);
       soundManager.playIllegal();
       return false;
     }
@@ -780,21 +735,19 @@ export default function App() {
     setSettings((prev) => ({ ...prev, flipBoard: !prev.flipBoard }));
   };
 
-  // Dedicated Resign Flow
   const handleResign = () => {
     const activeColor = chessRef.current.turn();
     const winner = activeColor === 'w' ? 'Black' : 'White';
     const outcome: '1-0' | '0-1' = activeColor === 'w' ? '0-1' : '1-0';
     handleGameEnd(
-      `${winner} Wins by Resignation!`,
-      `${activeColor === 'w' ? 'White' : 'Black'} has resigned the match.`,
+      `${winner} wins`,
+      'Resignation',
       'Resignation',
       outcome
     );
     soundManager.playDefeat();
   };
 
-  // Dedicated Draw Offer Flow
   const handleInitiateDrawOffer = async () => {
     if (chessRef.current.isGameOver() || isBotThinking) return;
     setIsDrawOfferOpen(true);
@@ -802,7 +755,6 @@ export default function App() {
     if (gameMode === 'bot') {
       setDrawOfferBotDecision('evaluating');
       const evalScore = await engineService.evaluateFen(chessRef.current.fen());
-      // Bot accepts if position is balanced (|score| <= 65 cp) or player is winning
       const botPerspectiveScore = userSide === 'w' ? -evalScore : evalScore;
       setTimeout(() => {
         if (botPerspectiveScore < 70) {
@@ -810,7 +762,7 @@ export default function App() {
         } else {
           setDrawOfferBotDecision('declined');
         }
-      }, 400);
+      }, 350);
     }
   };
 
@@ -818,8 +770,8 @@ export default function App() {
     setIsDrawOfferOpen(false);
     setDrawOfferBotDecision(null);
     handleGameEnd(
-      'Game Drawn by Mutual Agreement!',
-      'Both players agreed to conclude the match in a peaceful draw.',
+      'Draw',
+      'Mutual agreement',
       'Draw Agreed',
       '1/2-1/2'
     );
@@ -829,25 +781,6 @@ export default function App() {
     setIsDrawOfferOpen(false);
     setDrawOfferBotDecision(null);
   };
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handleUndo();
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        handleRedo();
-      } else if (e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        toggleFlipBoard();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [moveHistory.length, historyIndex, isBotThinking]);
 
   const isBoardFlipped =
     gameMode === 'bot'
@@ -861,74 +794,62 @@ export default function App() {
   const bottomColor: Color = isBoardFlipped ? 'b' : 'w';
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-slate-950 text-slate-100 overflow-x-hidden selection:bg-amber-500 selection:text-slate-950">
-      <OfflineIndicator />
-
-      {/* iOS-Inspired Top Bar */}
-      <header className="sticky top-0 z-30 px-3 sm:px-6 py-2.5 bg-slate-900/60 backdrop-blur-2xl border-b border-white/10 transition-colors">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          {/* Left Title / Home Back Action */}
-          <div className="flex items-center gap-2">
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-150 ${
+      settings.darkMode ? 'bg-zinc-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+    }`}>
+      {/* Header strictly: Simple logo icon + title "Chess" | Top right strictly: [History Icon], [Sound Toggle], [Theme Toggle] */}
+      <header className="sticky top-0 z-30 px-4 sm:px-8 py-3 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 transition-colors">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          {/* Logo & Title */}
+          <div className="flex items-center gap-2.5">
             {currentView === 'game' ? (
               <button
-                onClick={() => setCurrentView('home')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold backdrop-blur-xl transition active:scale-95 cursor-pointer"
+                onClick={() => {
+                  setGameResultModal(null);
+                  setCurrentView('home');
+                }}
+                className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                title="Back"
               >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
+                <ChevronLeft className="w-5 h-5" />
+                <span className="text-sm font-semibold">Chess</span>
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-black shadow-md shadow-amber-500/30">
-                  ♟
-                </div>
-                <span className="font-black text-sm tracking-tight text-white hidden sm:inline">
-                  GM Chess
-                </span>
-              </div>
-            )}
-
-            {currentView === 'game' && (
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
-                <span className="capitalize px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
-                  {gameMode === 'bot'
-                    ? `vs ${BOT_CONFIGS[botDifficulty].name}`
-                    : gameMode === 'pass-and-play'
-                    ? '1v1 Pass & Play'
-                    : 'Tactical Puzzle'}
+                <span className="text-xl leading-none">♟</span>
+                <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white">
+                  Chess
                 </span>
               </div>
             )}
           </div>
 
-          {/* Quick Header Tools */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <PWAInstallButton />
-
+          {/* Strictly: [History Icon], [Sound Toggle], [Settings Gear Icon] */}
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setIsHistoryDrawerOpen(true)}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-              title="Completed Matches Archive"
+              className="p-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+              title="History"
             >
               <History className="w-4 h-4" />
             </button>
 
             <button
               onClick={() => setSettings((s) => ({ ...s, soundEnabled: !s.soundEnabled }))}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-              title={settings.soundEnabled ? 'Mute Audio' : 'Unmute Audio'}
+              className="p-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+              title={settings.soundEnabled ? 'Mute' : 'Unmute'}
             >
               {settings.soundEnabled ? (
-                <Volume2 className="w-4 h-4 text-emerald-400" />
+                <Volume2 className="w-4 h-4" />
               ) : (
-                <VolumeX className="w-4 h-4 text-slate-500" />
+                <VolumeX className="w-4 h-4" />
               )}
             </button>
 
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-              title="Customization & Settings"
+              className="p-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+              title="Settings"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -936,7 +857,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main View Router */}
+      {/* Main View */}
       {currentView === 'home' ? (
         <HomeDashboard
           onSelectMode={(mode, botLvl, side) => {
@@ -947,51 +868,29 @@ export default function App() {
           savedGame={savedActiveMatch}
           botDifficulty={botDifficulty}
           onSelectBotDifficulty={(lvl) => setBotDifficulty(lvl)}
-          puzzleSolvedCount={puzzleSolvedCount}
-          totalPuzzles={CHESS_PUZZLES.length}
-          puzzleStreak={puzzleStreak}
-          matchesCompletedCount={completedMatches.length}
-          onOpenHistory={() => setIsHistoryDrawerOpen(true)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
         />
       ) : (
-        /* In-Game Glass Arena */
-        <main className="flex-1 max-w-7xl mx-auto w-full p-2.5 sm:p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start animate-in fade-in duration-200">
-          {/* Board & Player Indicators */}
-          <div className="lg:col-span-7 xl:col-span-8 flex flex-col items-center space-y-2.5">
-            {/* Top Player Glass Pill */}
-            <div className="w-full max-w-[540px] flex items-center justify-between px-3 py-2 rounded-2xl bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-lg">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">
+        /* In-Game View */
+        <main className="flex-1 max-w-5xl mx-auto w-full p-3 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start">
+          {/* Board Column */}
+          <div className="lg:col-span-8 flex flex-col items-center space-y-2">
+            {/* Top Player Info */}
+            <div className="w-full max-w-[540px] flex items-center justify-between px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   {gameMode === 'bot'
                     ? topColor === (userSide === 'w' ? 'b' : 'w')
-                      ? BOT_CONFIGS[botDifficulty].avatar
-                      : '👤'
-                    : '👤'}
+                      ? `Computer (Level ${botDifficulty})`
+                      : 'Player'
+                    : topColor === 'b'
+                    ? 'Black'
+                    : 'White'}
                 </span>
-                <div>
-                  <div className="text-xs font-bold flex items-center gap-1.5 text-slate-200">
-                    <span>
-                      {gameMode === 'bot'
-                        ? topColor === (userSide === 'w' ? 'b' : 'w')
-                          ? `${BOT_CONFIGS[botDifficulty].name} (~${BOT_CONFIGS[botDifficulty].rating})`
-                          : 'Player'
-                        : topColor === 'b'
-                        ? 'Black Player'
-                        : 'White Player'}
-                    </span>
-                    {isBotThinking && topColor === (userSide === 'w' ? 'b' : 'w') && (
-                      <span className="text-[10px] text-amber-400 font-mono animate-pulse">
-                        Calculating...
-                      </span>
-                    )}
-                  </div>
-                  <CapturedPieces
-                    capturedByWhite={capturedByWhite}
-                    capturedByBlack={capturedByBlack}
-                    color={topColor}
-                  />
-                </div>
+                <CapturedPieces
+                  capturedByWhite={capturedByWhite}
+                  capturedByBlack={capturedByBlack}
+                  color={topColor}
+                />
               </div>
 
               <Timer
@@ -1002,7 +901,7 @@ export default function App() {
               />
             </div>
 
-            {/* ChessBoard Component */}
+            {/* ChessBoard */}
             <ChessBoard
               chess={chessRef.current}
               themeId={settings.boardTheme}
@@ -1015,37 +914,23 @@ export default function App() {
               onMove={handleBoardMove}
             />
 
-            {/* Bottom Player Glass Pill */}
-            <div className="w-full max-w-[540px] flex items-center justify-between px-3 py-2 rounded-2xl bg-white/[0.05] border border-white/10 backdrop-blur-xl shadow-lg">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">
+            {/* Bottom Player Info */}
+            <div className="w-full max-w-[540px] flex items-center justify-between px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   {gameMode === 'bot'
                     ? bottomColor === userSide
-                      ? '👤'
-                      : BOT_CONFIGS[botDifficulty].avatar
-                    : '👤'}
+                      ? 'You'
+                      : `Computer (Level ${botDifficulty})`
+                    : bottomColor === 'w'
+                    ? 'White'
+                    : 'Black'}
                 </span>
-                <div>
-                  <div className="text-xs font-bold flex items-center gap-1.5 text-slate-200">
-                    <span>
-                      {gameMode === 'bot'
-                        ? bottomColor === userSide
-                          ? 'Player (You)'
-                          : `${BOT_CONFIGS[botDifficulty].name} (~${BOT_CONFIGS[botDifficulty].rating})`
-                        : bottomColor === 'w'
-                        ? 'White Player'
-                        : 'Black Player'}
-                    </span>
-                    {currentTurn === bottomColor && !chessRef.current.isGameOver() && (
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    )}
-                  </div>
-                  <CapturedPieces
-                    capturedByWhite={capturedByWhite}
-                    capturedByBlack={capturedByBlack}
-                    color={bottomColor}
-                  />
-                </div>
+                <CapturedPieces
+                  capturedByWhite={capturedByWhite}
+                  capturedByBlack={capturedByBlack}
+                  color={bottomColor}
+                />
               </div>
 
               <Timer
@@ -1056,13 +941,13 @@ export default function App() {
               />
             </div>
 
-            {/* Quick Game Controls Bar (Resign, Offer Draw, Flip, New Game) */}
-            <div className="w-full max-w-[540px] flex items-center justify-between px-2 pt-1 text-xs">
-              <div className="flex items-center gap-1.5">
+            {/* In-Game Controls Bar */}
+            <div className="w-full max-w-[540px] flex items-center justify-between pt-1 text-xs">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={toggleFlipBoard}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95"
-                  title="Flip Board Orientation (F)"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                  title="Flip"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Flip</span>
@@ -1070,35 +955,39 @@ export default function App() {
 
                 <button
                   onClick={() => startNewGame()}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95"
-                  title="Start a Fresh Match"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                  title="New Game"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Restart</span>
                 </button>
+
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="p-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                  title="Settings"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               {gameMode !== 'puzzle' && (
-                <div className="flex items-center gap-1.5">
-                  {/* Dedicated Offer Draw Button */}
+                <div className="flex items-center gap-1">
                   <button
                     onClick={handleInitiateDrawOffer}
                     disabled={moveHistory.length === 0 || chessRef.current.isGameOver() || isBotThinking}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-amber-400 border border-white/10 transition disabled:opacity-30 disabled:pointer-events-none cursor-pointer active:scale-95"
-                    title="Offer a Peaceful Draw"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                   >
-                    <Handshake className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Offer Draw</span>
+                    <Handshake className="w-3.5 h-3.5" />
+                    <span>Draw</span>
                   </button>
 
-                  {/* Dedicated Resign Button */}
                   <button
                     onClick={handleResign}
                     disabled={moveHistory.length === 0 || chessRef.current.isGameOver()}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition disabled:opacity-30 disabled:pointer-events-none cursor-pointer active:scale-95"
-                    title="Resign Current Game"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                   >
-                    <Flag className="w-3.5 h-3.5 text-rose-400" />
+                    <Flag className="w-3.5 h-3.5" />
                     <span>Resign</span>
                   </button>
                 </div>
@@ -1106,8 +995,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right Panel: Move History or Tactical Puzzles */}
-          <div className="lg:col-span-5 xl:col-span-4 flex flex-col space-y-4">
+          {/* Right Column: Move List or Puzzles */}
+          <div className="lg:col-span-4 flex flex-col space-y-4">
             {gameMode === 'puzzle' ? (
               <PuzzlePanel
                 puzzle={CHESS_PUZZLES[currentPuzzleIndex]}
@@ -1132,7 +1021,7 @@ export default function App() {
                 }}
                 onShowSolution={() => {
                   const puzzle = CHESS_PUZZLES[currentPuzzleIndex];
-                  setPuzzleFeedback(`Solution: ${puzzle.moves.join(' → ')}`);
+                  setPuzzleFeedback(`Solution: ${puzzle.moves.join(' ')}`);
                   setPuzzleStatus('failed');
                 }}
                 solvedCount={puzzleSolvedCount}
@@ -1161,7 +1050,7 @@ export default function App() {
         </main>
       )}
 
-      {/* Pawn Promotion Dialog */}
+      {/* Promotion Dialog */}
       <PromotionModal
         isOpen={!!pendingPromotion}
         color={pendingPromotion?.color || 'w'}
@@ -1179,7 +1068,7 @@ export default function App() {
         onDecline={handleDeclineDraw}
       />
 
-      {/* Settings Modal */}
+      {/* Settings Dialog */}
       <SettingsModal
         isOpen={isSettingsOpen}
         settings={settings}
@@ -1197,28 +1086,33 @@ export default function App() {
         onClearHistory={() => setCompletedMatches([])}
       />
 
-      {/* Game Over / Result Modal */}
-      {gameResultModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-sm rounded-3xl bg-slate-900/95 border border-white/10 p-6 shadow-2xl backdrop-blur-2xl text-center text-slate-100 animate-in zoom-in-95">
-            <div className="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 text-3xl">
-              🏆
-            </div>
-            <h3 className="text-xl font-black text-white">{gameResultModal.title}</h3>
-            <p className="text-xs text-slate-300 mt-1 mb-5">{gameResultModal.subtitle}</p>
+      {/* Result Modal */}
+      {currentView === 'game' && gameResultModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-6 shadow-xl text-center text-slate-900 dark:text-white">
+            <h3 className="text-lg font-bold">{gameResultModal.title}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-6">
+              {gameResultModal.subtitle}
+            </p>
 
             <div className="space-y-2">
               <button
-                onClick={() => startNewGame()}
-                className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
+                onClick={() => {
+                  setGameResultModal(null);
+                  startNewGame();
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 font-semibold text-xs transition cursor-pointer"
               >
-                Play Rematch / New Game
+                New Game
               </button>
               <button
-                onClick={() => setCurrentView('home')}
-                className="w-full py-2 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 font-semibold text-xs transition cursor-pointer"
+                onClick={() => {
+                  setGameResultModal(null);
+                  setCurrentView('home');
+                }}
+                className="w-full py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition cursor-pointer"
               >
-                Return to Dashboard
+                Home
               </button>
             </div>
           </div>
